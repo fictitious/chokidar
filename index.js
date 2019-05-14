@@ -164,8 +164,9 @@ class WatchHelper {
     // only need to resolve once
     // first entry should always have entry.parentDir === ''
     if (this.globSymlink == null) {
-      this.globSymlink = entry.fullParentDir === this.fullWatchPath ?
-        false : {realPath: entry.fullParentDir, linkPath: this.fullWatchPath};
+      const realPath = sysPath.dirname(entry.fullPath);
+      this.globSymlink = realPath === this.fullWatchPath ?
+        false : {realPath, linkPath: this.fullWatchPath};
     }
 
     if (this.globSymlink) {
@@ -258,6 +259,7 @@ constructor(_opts) {
   if (undef(opts, 'interval')) opts.interval = 100;
   if (undef(opts, 'binaryInterval')) opts.binaryInterval = 300;
   if (undef(opts, 'disableGlobbing')) opts.disableGlobbing = false;
+  if (undef(opts, 'alwaysStat')) opts.alwaysStat = false;
   opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
   // Enable fsevents on OS X when polling isn't explicitly enabled.
@@ -769,6 +771,7 @@ _getWatchedDir(directory) {
 */
 _hasReadPermissions(stats) {
   if (this.options.ignorePermissionErrors) return true;
+  if (!stats) return true;
 
   const st = (stats && stats.mode) & 0o777;
   const it = parseInt(st.toString(8)[0], 10);
@@ -864,7 +867,8 @@ _addPathCloser(path, closer) {
 }
 
 _readdirp(root, opts) {
-  const options = Object.assign({type: 'all', alwaysStat: true, lstat: true}, opts);
+  const options = Object.assign({type: 'all', alwaysStat: this.options.alwaysStat, lstat: this.options.followSymlinks}, opts);
+  // const options = Object.assign({type: 'all', alwaysStat: true, lstat: true}, opts);
   let stream = readdirp(root, options);
   this._streams.add(stream);
   stream.once('close', () => {
